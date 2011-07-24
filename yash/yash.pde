@@ -39,6 +39,8 @@
 // Libraries
 #include <LiquidCrystal.h>
 #include <PID_v1.h>
+#include <SimpleTimer.h>
+#include <Tone.h>
 
 // Control button pin settings
 #define UpButton 0
@@ -49,6 +51,9 @@
 // Crock Pot pin settings
 #define CrockSelect 4
 #define CrockOff 5
+
+// Buzzer pin setting
+#define Buzzer 6
 
 // Temperature sensor pin setting
 #define TempSensor 0
@@ -76,7 +81,9 @@ int CrockState = 0;
 // 1: Set Temp
 // 2: Set Time
 int DisplayMode = 0;
-int newDisplayMode = 0;
+
+// Countdown time in seconds
+int Time = 7200;
 
 // Variables will change:
 int UpButtonState;             // the current reading from the input pin
@@ -102,12 +109,19 @@ LiquidCrystal lcd(LCD_RS, LCD_E, LCD_D4, LCD_D5, LCD_D6, LCD_D7);
 // initialize the PID with its variables and tuning parameters
 PID pid(&Input, &Output, &Setpoint, 2, 5, 1, DIRECT);
 
+long startTime;
+SimpleTimer timer;
+
+Tone buzzer;
+
 void setup() {
   // set up the input control buttons
   pinMode(UpButton, INPUT);
   pinMode(DownButton, INPUT);
   pinMode(ModeButton, INPUT);
   pinMode(SelectButton, INPUT);
+  
+  pinMode(Buzzer, OUTPUT);
   
   // set up the crock pot outputs
   pinMode(CrockSelect, OUTPUT);
@@ -123,31 +137,113 @@ void setup() {
   lcd.print("Welcome to YASH");
   lcd.setCursor(0, 1);
   lcd.print("Sylvia & Peter");
-  delay(4000);
+  delay(3000);
   lcd.clear();
   
   // initialize PID values
   Input = TempSensorToFahren(analogRead(TempSensor));
-  Setpoint = 130;
+  Setpoint = 105;
   pid.SetMode(AUTOMATIC);
+  startTime = millis();
+  updateLCD();
+  
+  timer.setInterval(1000, updateLCD);
+  
+  buzzer.begin(Buzzer);
 }
 
 void loop() {
-  // read temp and compute PID output
-  Input = analogRead(TempSensor);
-  pid.Compute();
-  setCrockState(1);
-  delay(1000);
-  setCrockState(2);
-  delay(1000);
-  setCrockState(3);
-  delay(1000);
-  //setCrockPotOutputs();
+  if(secsLeft() > 0) {
+    // read temp and compute PID output
+    Input = TempSensorToFahren(analogRead(TempSensor));
+    pid.Compute();
+    adjustCrockPot(Output);
+  } else {
+    // turn off Crock Pot
+    setCrockState(0);
+    playBuzzer();
+    delay(3000);
+  }
+  
   readInputButtons();
-  //setLCDOutput();
+  
+  // LCD update timer to refresh the LCD when its in a running state
+  timer.run();
+}
+
+void playBuzzer() {
+  buzzer.play(NOTE_FS6);
+  delay(1000);
+  buzzer.stop();
+  buzzer.play(NOTE_E6);
+  delay(1000);
+  buzzer.stop();
+  buzzer.play(NOTE_D6);
+  delay(1000);
+  buzzer.stop();
+  buzzer.play(NOTE_CS6);
+  delay(1000);
+  buzzer.stop();
+  buzzer.play(NOTE_B6);
+  delay(1000);
+  buzzer.stop();
+  buzzer.play(NOTE_A6);
+  delay(1000);
+  buzzer.stop();
+  buzzer.play(NOTE_B6);
+  delay(1000);
+  buzzer.stop();
+  buzzer.play(NOTE_CS6);
+  delay(1000);
+  buzzer.stop();
+  buzzer.play(NOTE_D6);
+  delay(1000);
+  buzzer.stop();
+  buzzer.play(NOTE_CS6);
+  delay(1000);
+  buzzer.stop();
+  buzzer.play(NOTE_B6);
+  delay(1000);
+  buzzer.stop();
+  buzzer.play(NOTE_A6);
+  delay(1000);
+  buzzer.stop();
+  buzzer.play(NOTE_G5);
+  delay(1000);
+  buzzer.stop();
+  buzzer.play(NOTE_FS5);
+  delay(1000);
+  buzzer.stop();
+  buzzer.play(NOTE_G5);
+  delay(1000);
+  buzzer.stop();
+  buzzer.play(NOTE_E5);
+  delay(1000);
+  buzzer.stop();
+  delay(3000);
+  buzzer.play(NOTE_C7);
+  delay(3000);
+  buzzer.stop();
+}
+
+void adjustCrockPot(double Output) {
+  if(Output <= 60) {
+   setCrockState(0);
+  } else if(Output > 60 && Output <= 120) {
+    setCrockState(3);
+  } else if(Output > 120 && Output <= 200) {
+    setCrockState(1); 
+  } else {
+    setCrockState(2); 
+  }
 }
 
 void setCrockState(int newState) {
+  // do nothing if we're attempting to change back to the same state
+  if(newState == CrockState) {
+    return;
+  }
+  
   // Set to OFF
   if(newState == 0) {
     digitalWrite(CrockOff, LOW);
@@ -200,7 +296,19 @@ void readUpButton() {
     // than the debounce delay, so take it as the actual current state:
     if(reading == HIGH && UpButtonState == LOW) {
       UpButtonState = HIGH;
-      lcd.print("0");
+      
+      // switch action based on which DisplayMode we are in
+      switch(DisplayMode) {
+       case 1:
+         Setpoint += 5;
+         break;
+       case 2:
+         Time += 300;
+         startTime = millis();
+         break;
+      }
+      
+      updateLCD();
     }
     if(reading == LOW) {
       UpButtonState = LOW;
@@ -232,7 +340,23 @@ void readDownButton() {
     // than the debounce delay, so take it as the actual current state:
     if(reading == HIGH && DownButtonState == LOW) {
       DownButtonState = HIGH;
-      lcd.print("1");
+      
+      // switch action based on which DisplayMode we are in
+      switch(DisplayMode) {
+       case 1:
+         if(Setpoint >= 5) {
+           Setpoint -= 5;
+         }
+         break;
+       case 2:
+         if(Time >= 300) {
+           Time -= 300;
+         }
+         startTime = millis();
+         break;
+      }
+      
+      updateLCD();
     }
     if(reading == LOW) {
      DownButtonState = LOW; 
@@ -264,7 +388,15 @@ void readModeButton() {
     // than the debounce delay, so take it as the actual current state:
     if(reading == HIGH && ModeButtonState == LOW) {
       ModeButtonState = HIGH;
-      lcd.print("2");
+      
+      // increment display mode due to Mode button press
+      if(DisplayMode == 2) {
+        DisplayMode = 0;
+      } else {
+        DisplayMode++;
+      }
+      
+      updateLCD();
     }
     if(reading == LOW) {
      ModeButtonState = LOW; 
@@ -308,8 +440,78 @@ void readSelectButton() {
   lastSelectButtonState = reading;
 }
 
-void setLCDOutput() {
-  lcd.display(); 
+void updateLCD() {
+   // clear LCD for new mode to be displayed
+  lcd.clear();
+  
+  // switch LCD output to match selected Display Mode
+  switch(DisplayMode) {
+   case 0:
+     printStatus();
+     break;
+   case 1: 
+     printSetSetpoint();
+     break;
+   case 2: 
+     printSetTime();
+     break;
+  } 
+}
+
+void printStatus() {
+  int timeLeft = secsLeft();  
+  int hoursLeft = timeLeft / 3600;
+  timeLeft = timeLeft % 3600;
+  int minsLeft = timeLeft / 60;
+  int secsLeft = timeLeft % 60;
+  lcd.print("Set: ");
+  lcd.print((int)Setpoint);
+  lcd.print(" Tp: ");
+  lcd.print((int)Input);
+  lcd.setCursor(0, 1);
+  lcd.print("Time: ");
+  if(hoursLeft < 10) {
+    lcd.print("0");
+  }
+  lcd.print(hoursLeft);
+  lcd.print(":");
+  if(minsLeft < 10) {
+    lcd.print("0");
+  }
+  lcd.print(minsLeft);
+  lcd.print(":");
+  if(secsLeft < 10) {
+    lcd.print("0");
+  }
+  lcd.print(secsLeft);
+}
+
+void printSetSetpoint() {
+  lcd.print("Choose Setpoint: ");
+  lcd.setCursor(0, 1);
+  lcd.print((int)Setpoint);
+}
+
+void printSetTime() {
+  lcd.print("Choose Time: ");
+  lcd.setCursor(0, 1);
+  
+  // show time in minutes
+  lcd.print(Time/60);
+}
+
+// calculate how many minutes are left based on the set Time and the measured elapsed time
+int secsLeft() {
+  int tempTime = Time;
+  
+  // calculate the elapsed milliseconds, and then convert to number of seconds elapsed
+  tempTime -= (millis() - startTime) / 1000;
+  
+  if(tempTime < 0) {
+    return 0;
+  } else {
+    return tempTime;
+  }
 }
 
 // Convert analog value from temp. sensor into Fahrenheit temp. value
