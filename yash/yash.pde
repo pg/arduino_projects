@@ -1,14 +1,15 @@
 /*
-  LiquidCrystal Library - display() and noDisplay()
+  YASH - Yet Another Sous-vide Hack
  
- Demonstrates the use a 16x2 LCD display.  The LiquidCrystal
- library works with all LCD displays that are compatible with the 
- Hitachi HD44780 driver. There are many of them out there, and you
- can usually tell them by the 16-pin interface.
- 
- This sketch prints "Hello World!" to the LCD and uses the 
- display() and noDisplay() functions to turn on and off
- the display.
+ This sketch is used as the PID controller to convert
+ a Crock Pot brand Smart-Pot slow-cooker into a
+ sous-vide appliance.  It allows for a temperature
+ setpoint and a countdown timer to be adjusted as needed.
+ When the temperature setpoint is reached, the PID algorithm
+ will attempt maintain the water bath in the Crock Pot around
+ that setpoint.  Once the countdown timer expires, the 
+ Crock Pot will be set to OFF, and the 'Done' buzzer
+ will play Pachelbel's Canon indefinitely.
  
  The circuit:
  * LCD RS pin to digital pin 8
@@ -22,18 +23,16 @@
  * ends to +5V and ground
  * wiper to LCD VO pin (pin 3)
  
- Library originally added 18 Apr 2008
- by David A. Mellis
- library modified 5 Jul 2009
- by Limor Fried (http://www.ladyada.net)
- example added 9 Jul 2009
- by Tom Igoe 
- modified 22 Nov 2010
- by Tom Igoe
-
- This example code is in the public domain.
-
- http://www.arduino.cc/en/Tutorial/LiquidCrystal
+ Libraries used:
+ LiquidCrystal (for the output LCD)
+   Library originally added 18 Apr 2008
+   by David A. Mellis
+   library modified 5 Jul 2009
+   by Limor Fried (http://www.ladyada.net)
+   http://www.arduino.cc/en/Tutorial/LiquidCrystal
+ PID Library
+ SimpleTimer
+ Tone
  */
 
 // Libraries
@@ -82,10 +81,10 @@ int CrockState = 0;
 // 2: Set Time
 int DisplayMode = 0;
 
-// Countdown time in seconds
+// Countdown time in seconds (default of 7200 seconds, or 2 hours)
 int Time = 7200;
 
-// Variables will change:
+// Variables used for button handling
 int UpButtonState;             // the current reading from the input pin
 int lastUpButtonState = LOW;   // the previous reading from the input pin
 int DownButtonState;             // the current reading from the input pin
@@ -94,9 +93,6 @@ int ModeButtonState;             // the current reading from the input pin
 int lastModeButtonState = LOW;   // the previous reading from the input pin
 int SelectButtonState;             // the current reading from the input pin
 int lastSelectButtonState = LOW;   // the previous reading from the input pin
-
-// the following variables are long's because the time, measured in miliseconds,
-// will quickly become a bigger number than can be stored in an int.
 long lastUpDebounceTime = 0;  // the last time the output pin was toggled
 long lastDownDebounceTime = 0;  // the last time the output pin was toggled
 long lastModeDebounceTime = 0;  // the last time the output pin was toggled
@@ -109,9 +105,14 @@ LiquidCrystal lcd(LCD_RS, LCD_E, LCD_D4, LCD_D5, LCD_D6, LCD_D7);
 // initialize the PID with its variables and tuning parameters
 PID pid(&Input, &Output, &Setpoint, 2, 5, 1, DIRECT);
 
+// Timer variables
 long startTime;
 SimpleTimer timer;
 
+// Count used to display number of sends to the Serial output
+int serialSendCount = 0;
+
+// Buzzer object used when playing the 'Done' buzzing
 Tone buzzer;
 
 void setup() {
@@ -121,6 +122,7 @@ void setup() {
   pinMode(ModeButton, INPUT);
   pinMode(SelectButton, INPUT);
   
+  // set up the buzzer output pin
   pinMode(Buzzer, OUTPUT);
   
   // set up the crock pot outputs
@@ -144,22 +146,33 @@ void setup() {
   Input = TempSensorToFahren(analogRead(TempSensor));
   Setpoint = 105;
   pid.SetMode(AUTOMATIC);
+  
+  // set the start time used as the starting point for the countdown timer
   startTime = millis();
-  updateLCD();
   
+  // set up the LCD update interrupt and the Serial output interrupt
   timer.setInterval(1000, updateLCD);
+  timer.setInterval(30000, sendTemp);
   
+  // set up the 'Done' buzzer for when it's needed
   buzzer.begin(Buzzer);
+  
+  // open serial connection to send back temp. data
+  Serial.begin(9600);
+  
+  // update the LCD to show the program's typical display output
+  updateLCD();
 }
 
 void loop() {
+  // if we still have time left on the countdown timer...
   if(secsLeft() > 0) {
     // read temp and compute PID output
     Input = TempSensorToFahren(analogRead(TempSensor));
     pid.Compute();
     adjustCrockPot(Output);
   } else {
-    // turn off Crock Pot
+    // countdown timer is completed, turn off Crock Pot and play our buzzer indefinitely
     setCrockState(0);
     playBuzzer();
     delay(3000);
@@ -169,61 +182,6 @@ void loop() {
   
   // LCD update timer to refresh the LCD when its in a running state
   timer.run();
-}
-
-void playBuzzer() {
-  buzzer.play(NOTE_FS6);
-  delay(1000);
-  buzzer.stop();
-  buzzer.play(NOTE_E6);
-  delay(1000);
-  buzzer.stop();
-  buzzer.play(NOTE_D6);
-  delay(1000);
-  buzzer.stop();
-  buzzer.play(NOTE_CS6);
-  delay(1000);
-  buzzer.stop();
-  buzzer.play(NOTE_B6);
-  delay(1000);
-  buzzer.stop();
-  buzzer.play(NOTE_A6);
-  delay(1000);
-  buzzer.stop();
-  buzzer.play(NOTE_B6);
-  delay(1000);
-  buzzer.stop();
-  buzzer.play(NOTE_CS6);
-  delay(1000);
-  buzzer.stop();
-  buzzer.play(NOTE_D6);
-  delay(1000);
-  buzzer.stop();
-  buzzer.play(NOTE_CS6);
-  delay(1000);
-  buzzer.stop();
-  buzzer.play(NOTE_B6);
-  delay(1000);
-  buzzer.stop();
-  buzzer.play(NOTE_A6);
-  delay(1000);
-  buzzer.stop();
-  buzzer.play(NOTE_G5);
-  delay(1000);
-  buzzer.stop();
-  buzzer.play(NOTE_FS5);
-  delay(1000);
-  buzzer.stop();
-  buzzer.play(NOTE_G5);
-  delay(1000);
-  buzzer.stop();
-  buzzer.play(NOTE_E5);
-  delay(1000);
-  buzzer.stop();
-  delay(3000);
-  buzzer.play(NOTE_C7);
-  delay(3000);
-  buzzer.stop();
 }
 
 void adjustCrockPot(double Output) {
@@ -455,7 +413,7 @@ void updateLCD() {
    case 2: 
      printSetTime();
      break;
-  } 
+  }
 }
 
 void printStatus() {
@@ -522,5 +480,68 @@ float TempSensorToFahren(float analogVal) {
   // multiply by 9/5 and add 32 to convert Celsius to Fahrenheit
   // ex.  2.95V from sensor is about 72degF
   return ((((0.004888 * analogVal) * 100.0) - 273.15) * 1.87) + 32.0;
+}
+
+void playBuzzer() {
+  buzzer.play(NOTE_FS6);
+  delay(1000);
+  buzzer.stop();
+  buzzer.play(NOTE_E6);
+  delay(1000);
+  buzzer.stop();
+  buzzer.play(NOTE_D6);
+  delay(1000);
+  buzzer.stop();
+  buzzer.play(NOTE_CS6);
+  delay(1000);
+  buzzer.stop();
+  buzzer.play(NOTE_B6);
+  delay(1000);
+  buzzer.stop();
+  buzzer.play(NOTE_A6);
+  delay(1000);
+  buzzer.stop();
+  buzzer.play(NOTE_B6);
+  delay(1000);
+  buzzer.stop();
+  buzzer.play(NOTE_CS6);
+  delay(1000);
+  buzzer.stop();
+  buzzer.play(NOTE_D6);
+  delay(1000);
+  buzzer.stop();
+  buzzer.play(NOTE_CS6);
+  delay(1000);
+  buzzer.stop();
+  buzzer.play(NOTE_B6);
+  delay(1000);
+  buzzer.stop();
+  buzzer.play(NOTE_A6);
+  delay(1000);
+  buzzer.stop();
+  buzzer.play(NOTE_G5);
+  delay(1000);
+  buzzer.stop();
+  buzzer.play(NOTE_FS5);
+  delay(1000);
+  buzzer.stop();
+  buzzer.play(NOTE_G5);
+  delay(1000);
+  buzzer.stop();
+  buzzer.play(NOTE_E5);
+  delay(1000);
+  buzzer.stop();
+  delay(3000);
+  buzzer.play(NOTE_C7);
+  delay(3000);
+  buzzer.stop();
+}
+
+void sendTemp() {
+  // send back temp. data
+  Serial.print(serialSendCount);
+  Serial.print(" ");
+  Serial.println(Input);
+  serialSendCount++;
 }
 
