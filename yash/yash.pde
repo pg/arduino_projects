@@ -45,14 +45,13 @@
 #define UpButton 0
 #define DownButton 1
 #define ModeButton 2
-#define SelectButton 3
 
 // Crock Pot pin settings
-#define CrockSelect 4
-#define CrockOff 5
+#define CrockSelect 3
+#define CrockOff 4
 
 // Buzzer pin setting
-#define Buzzer 6
+#define Buzzer 5
 
 // Temperature sensor pin setting
 #define TempSensor 0
@@ -85,25 +84,27 @@ int DisplayMode = 0;
 int Time = 7200;
 
 // Variables used for button handling
-int UpButtonState;             // the current reading from the input pin
-int lastUpButtonState = LOW;   // the previous reading from the input pin
-int DownButtonState;             // the current reading from the input pin
-int lastDownButtonState = LOW;   // the previous reading from the input pin
-int ModeButtonState;             // the current reading from the input pin
-int lastModeButtonState = LOW;   // the previous reading from the input pin
-int SelectButtonState;             // the current reading from the input pin
-int lastSelectButtonState = LOW;   // the previous reading from the input pin
-long lastUpDebounceTime = 0;  // the last time the output pin was toggled
+int UpButtonState;              // the current reading from the input pin
+int lastUpButtonState = LOW;    // the previous reading from the input pin
+int DownButtonState;            // the current reading from the input pin
+int lastDownButtonState = LOW;  // the previous reading from the input pin
+int ModeButtonState;            // the current reading from the input pin
+int lastModeButtonState = LOW;  // the previous reading from the input pin
+long lastUpDebounceTime = 0;    // the last time the output pin was toggled
 long lastDownDebounceTime = 0;  // the last time the output pin was toggled
 long lastModeDebounceTime = 0;  // the last time the output pin was toggled
-long lastSelectDebounceTime = 0;  // the last time the output pin was toggled
-long debounceDelay = 50;    // the debounce time; increase if the output flickers
+long lastFastIncrementTime = 0; // the last time a fast increment occurred
+long lastFastDecrementTime = 0; // the last time a fast decrement occurred
+long debounceDelay = 50;        // the debounce time; increase if the output flickers
+long buttonHeldDelay = 2000;    // the time that designates that a button is in a "held" state
+long fastChangeDelay = 500;     // the time that designates how quickly we make fast 
+                                //  increments/decrements when the button is being held
 
 // initialize the LCD with the numbers of the interface pins
 LiquidCrystal lcd(LCD_RS, LCD_E, LCD_D4, LCD_D5, LCD_D6, LCD_D7);
 
 // initialize the PID with its variables and tuning parameters
-PID pid(&Input, &Output, &Setpoint, 2, 5, 1, DIRECT);
+PID pid(&Input, &Output, &Setpoint, 54, 60, 15, DIRECT);
 
 // Timer variables
 long startTime;
@@ -120,7 +121,6 @@ void setup() {
   pinMode(UpButton, INPUT);
   pinMode(DownButton, INPUT);
   pinMode(ModeButton, INPUT);
-  pinMode(SelectButton, INPUT);
   
   // set up the buzzer output pin
   pinMode(Buzzer, OUTPUT);
@@ -144,7 +144,7 @@ void setup() {
   
   // initialize PID values
   Input = TempSensorToFahren(analogRead(TempSensor));
-  Setpoint = 105;
+  Setpoint = 145;
   pid.SetMode(AUTOMATIC);
   
   // set the start time used as the starting point for the countdown timer
@@ -159,9 +159,6 @@ void setup() {
   
   // open serial connection to send back temp. data
   Serial.begin(9600);
-  
-  // update the LCD to show the program's typical display output
-  updateLCD();
 }
 
 void loop() {
@@ -170,7 +167,7 @@ void loop() {
     // read temp and compute PID output
     Input = TempSensorToFahren(analogRead(TempSensor));
     pid.Compute();
-    adjustCrockPot(Output);
+    adjustCrockPot();
   } else {
     // countdown timer is completed, turn off Crock Pot and play our buzzer indefinitely
     setCrockState(0);
@@ -184,7 +181,8 @@ void loop() {
   timer.run();
 }
 
-void adjustCrockPot(double Output) {
+// Change the Crock Pot state based on the PID output
+void adjustCrockPot() {
   if(Output <= 60) {
    setCrockState(0);
   } else if(Output > 60 && Output <= 120) {
@@ -196,6 +194,7 @@ void adjustCrockPot(double Output) {
   }
 }
 
+// Change the Crock Pot state
 void setCrockState(int newState) {
   // do nothing if we're attempting to change back to the same state
   if(newState == CrockState) {
@@ -208,6 +207,8 @@ void setCrockState(int newState) {
     delay(500);
     digitalWrite(CrockOff, HIGH);
   } else {
+    // Calculate how many "presses" on CrockSelect button to 
+    // get to the desired Crock Pot state
     int presses = 0;
     
     if(newState < CrockState) {
@@ -228,13 +229,11 @@ void setCrockState(int newState) {
 }
 
 void readInputButtons() {
- //readUpButton();
+ readUpButton();
  readDownButton();
  readModeButton();
- readSelectButton();
 }
 
-// Read debounced Up button
 void readUpButton() {
     // read the state of the switch into a local variable:
   int reading = digitalRead(UpButton);
@@ -248,39 +247,66 @@ void readUpButton() {
     // reset the debouncing timer
     lastUpDebounceTime = millis();
   } 
-  
-  if ((millis() - lastUpDebounceTime) > debounceDelay) {
-    // whatever the reading is at, it's been there for longer
-    // than the debounce delay, so take it as the actual current state:
-    if(reading == HIGH && UpButtonState == LOW) {
-      UpButtonState = HIGH;
+    
+  // whatever the reading is at, it's been there for longer
+  // than the debounce delay, so take it as the actual current state
+  if ((millis() - lastUpDebounceTime) > debounceDelay) {  
+    // Button is read as HIGH (or "pressed")
+    if(reading == HIGH) {
+      // Transition from button being LOW to now being recognized as HIGH, 
+      // so we perform a single increment
+      if(UpButtonState == LOW) {
+        UpButtonState = HIGH;
       
-      // switch action based on which DisplayMode we are in
-      switch(DisplayMode) {
-       case 1:
-         Setpoint += 5;
-         break;
-       case 2:
-         Time += 300;
-         startTime = millis();
-         break;
+        // switch action based on which DisplayMode we are in
+        switch(DisplayMode) {
+         case 1:
+           // Increment Setpoint temperature by one degree
+           Setpoint += 1;
+           break;
+         case 2:
+           // Increment Time by 60 seconds (1 minute)
+           Time += 60;
+           startTime = millis();
+           break;
+        }
+      }
+      
+      // If the button is still being read as HIGH and the button has been recognized
+      // in that state for longer than the buttonHeldDelay, we will perform a faster increment
+      if((millis() - lastUpDebounceTime) > buttonHeldDelay && (millis() - lastFastIncrementTime) > fastChangeDelay) {
+        // switch action based on which DisplayMode we are in
+        switch(DisplayMode) {
+         case 1:
+           // Increment Setpoint temperature by 5 degrees
+           Setpoint += 5;
+           break;
+         case 2:
+           // Increment Time by 300 seconds (5 minutes)
+           Time += 300;
+           startTime = millis();
+           break;
+        }
+        
+        lastFastIncrementTime = millis();
       }
       
       updateLCD();
     }
+    
+    // Button is read as LOW (or "unpressed")
     if(reading == LOW) {
       UpButtonState = LOW;
     }
   }
 
   // save the reading.  Next time through the loop,
-  // it'll be the lastButtonState:
+  // it'll be the lastButtonState
   lastUpButtonState = reading;
 }
 
-// Read debounced Up button
 void readDownButton() {
-    // read the state of the switch into a local variable:
+    // read the state of the switch into a local variable
   int reading = digitalRead(DownButton);
 
   // check to see if you just pressed the button 
@@ -293,31 +319,67 @@ void readDownButton() {
     lastDownDebounceTime = millis();
   } 
   
+  // whatever the reading is at, it's been there for longer
+  // than the debounce delay, so take it as the actual current state
   if ((millis() - lastDownDebounceTime) > debounceDelay) {
-    // whatever the reading is at, it's been there for longer
-    // than the debounce delay, so take it as the actual current state:
-    if(reading == HIGH && DownButtonState == LOW) {
-      DownButtonState = HIGH;
+    // Button is read as HIGH (or "pressed")
+    if(reading == HIGH) {
+      // Transition from button being LOW to now being recognized as HIGH, 
+      // so we perform a single decrement
+      if(DownButtonState == LOW) {
+        DownButtonState = HIGH;
       
-      // switch action based on which DisplayMode we are in
-      switch(DisplayMode) {
-       case 1:
-         if(Setpoint >= 5) {
-           Setpoint -= 5;
-         }
-         break;
-       case 2:
-         if(Time >= 300) {
-           Time -= 300;
-         }
-         startTime = millis();
-         break;
+        // switch action based on which DisplayMode we are in
+        switch(DisplayMode) {
+         case 1:
+           if(Setpoint >= 1) {
+             // Decrement Setpoint temperature by one degree
+             Setpoint -= 1;
+           }
+           break;
+         case 2:
+           if(Time >= 60) {
+             // Decrement Time by 60 seconds (1 minute)
+             Time -= 60;
+           }
+           startTime = millis();
+           break;
+        }
+      }
+      
+      // If the button is still being read as HIGH and the button has been recognized
+      // in that state for longer than the buttonHeldDelay, we will perform a faster decrement
+      if((millis() - lastDownDebounceTime) > buttonHeldDelay && (millis() - lastFastDecrementTime) > fastChangeDelay) {
+        // switch action based on which DisplayMode we are in
+        switch(DisplayMode) {
+         case 1:
+           if(Setpoint >= 5) {
+             // Decrement Setpoint temperature by 5 degrees
+             Setpoint -= 5;
+           } else {
+             Setpoint = 0;
+           }
+           break;
+         case 2:
+           if(Time >= 300) {
+             // Decrement Time by 300 seconds (5 minutes)
+             Time -= 300;
+           } else {
+             Time = 0;
+           }
+           startTime = millis();
+           break;
+        }
+        
+        lastFastDecrementTime = millis();
       }
       
       updateLCD();
     }
+    
+    // Button is read as LOW (or "unpressed")
     if(reading == LOW) {
-     DownButtonState = LOW; 
+      DownButtonState = LOW;
     }
   }
 
@@ -326,7 +388,6 @@ void readDownButton() {
   lastDownButtonState = reading;
 }
 
-// Read debounced Up button
 void readModeButton() {
     // read the state of the switch into a local variable:
   int reading = digitalRead(ModeButton);
@@ -340,10 +401,13 @@ void readModeButton() {
     // reset the debouncing timer
     lastModeDebounceTime = millis();
   } 
-  
+
+  // whatever the reading is at, it's been there for longer
+  // than the debounce delay, so take it as the actual current state
   if ((millis() - lastModeDebounceTime) > debounceDelay) {
-    // whatever the reading is at, it's been there for longer
-    // than the debounce delay, so take it as the actual current state:
+    // Button is read as HIGH (or "pressed")
+    // Transition from button being LOW to now being recognized as HIGH, 
+    // so we perform a single Mode change
     if(reading == HIGH && ModeButtonState == LOW) {
       ModeButtonState = HIGH;
       
@@ -356,6 +420,8 @@ void readModeButton() {
       
       updateLCD();
     }
+    
+    // Button is read as LOW (or "unpressed")
     if(reading == LOW) {
      ModeButtonState = LOW; 
     }
@@ -364,38 +430,6 @@ void readModeButton() {
   // save the reading.  Next time through the loop,
   // it'll be the lastButtonState:
   lastModeButtonState = reading;
-}
-
-// Read debounced Up button
-void readSelectButton() {
-    // read the state of the switch into a local variable:
-  int reading = digitalRead(SelectButton);
-
-  // check to see if you just pressed the button 
-  // (i.e. the input went from LOW to HIGH),  and you've waited 
-  // long enough since the last press to ignore any noise:  
-
-  // If the switch changed, due to noise or pressing:
-  if (reading != lastSelectButtonState) {
-    // reset the debouncing timer
-    lastSelectDebounceTime = millis();
-  } 
-  
-  if ((millis() - lastSelectDebounceTime) > debounceDelay) {
-    // whatever the reading is at, it's been there for longer
-    // than the debounce delay, so take it as the actual current state:
-    if(reading == HIGH && SelectButtonState == LOW) {
-      SelectButtonState = HIGH;
-      lcd.print("3");
-    }
-    if(reading == LOW) {
-      SelectButtonState = LOW;
-    }
-  }
-
-  // save the reading.  Next time through the loop,
-  // it'll be the lastButtonState:
-  lastSelectButtonState = reading;
 }
 
 void updateLCD() {
