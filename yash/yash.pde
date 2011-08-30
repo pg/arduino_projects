@@ -432,6 +432,8 @@ void readModeButton() {
   lastModeButtonState = reading;
 }
 
+// Update the LCD output to show information for 
+// whichever DisplayMode is currently selected
 void updateLCD() {
    // clear LCD for new mode to be displayed
   lcd.clear();
@@ -456,11 +458,19 @@ void printStatus() {
   timeLeft = timeLeft % 3600;
   int minsLeft = timeLeft / 60;
   int secsLeft = timeLeft % 60;
+  
+  // Print the Setpoint temperature
   lcd.print("Set: ");
   lcd.print((int)Setpoint);
+  
+  // Print current temperature
   lcd.print(" Tp: ");
   lcd.print((int)Input);
+  
+  // Go to second line of display
   lcd.setCursor(0, 1);
+  
+  // Print the time left
   lcd.print("Time: ");
   if(hoursLeft < 10) {
     lcd.print("0");
@@ -479,20 +489,20 @@ void printStatus() {
 }
 
 void printSetSetpoint() {
-  lcd.print("Choose Setpoint: ");
+  lcd.print("Set Setpoint: ");
   lcd.setCursor(0, 1);
   lcd.print((int)Setpoint);
 }
 
 void printSetTime() {
-  lcd.print("Choose Time: ");
+  lcd.print("Set Time: ");
   lcd.setCursor(0, 1);
   
   // show time in minutes
   lcd.print(Time/60);
 }
 
-// calculate how many minutes are left based on the set Time and the measured elapsed time
+// Calculate how many seconds are left based on the Time variable and the measured elapsed time
 int secsLeft() {
   int tempTime = Time;
   
@@ -516,6 +526,7 @@ float TempSensorToFahren(float analogVal) {
   return ((((0.004888 * analogVal) * 100.0) - 273.15) * 1.87) + 32.0;
 }
 
+// Plays Pachelbel's Canon on the buzzer (as the "Done" signal)
 void playBuzzer() {
   buzzer.play(NOTE_FS6);
   delay(1000);
@@ -571,6 +582,7 @@ void playBuzzer() {
   buzzer.stop();
 }
 
+// Sends back current temperature sensor value over Serial for debugging purposes
 void sendTemp() {
   // send back temp. data
   Serial.print(serialSendCount);
