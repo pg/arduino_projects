@@ -42,16 +42,16 @@
 #include <Tone.h>
 
 // Control button pin settings
-#define UpButton 0
-#define DownButton 1
-#define ModeButton 2
+#define UpButton 2
+#define DownButton 3
+#define ModeButton 4
 
 // Crock Pot pin settings
-#define CrockSelect 3
-#define CrockOff 4
+#define CrockSelect 5
+#define CrockOff 6
 
 // Buzzer pin setting
-#define Buzzer 5
+#define Buzzer 7
 
 // Temperature sensor pin setting
 #define TempSensor 0
@@ -257,7 +257,7 @@ void readUpButton() {
       // so we perform a single increment
       if(UpButtonState == LOW) {
         UpButtonState = HIGH;
-      
+        
         // switch action based on which DisplayMode we are in
         switch(DisplayMode) {
          case 1:
@@ -287,7 +287,6 @@ void readUpButton() {
            startTime = millis();
            break;
         }
-        
         lastFastIncrementTime = millis();
       }
       
@@ -370,7 +369,6 @@ void readDownButton() {
            startTime = millis();
            break;
         }
-        
         lastFastDecrementTime = millis();
       }
       
