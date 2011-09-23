@@ -1,55 +1,64 @@
 /*
-  YASH - Yet Another Sous-vide Hack
- 
- This sketch is used as the PID controller to convert
- a Crock Pot brand Smart-Pot slow-cooker into a
- sous-vide appliance.  It allows for a temperature
- setpoint and a countdown timer to be adjusted as needed.
- When the temperature setpoint is reached, the PID algorithm
- will attempt maintain the water bath in the Crock Pot around
- that setpoint.  Once the countdown timer expires, the 
- Crock Pot will be set to OFF, and the 'Done' buzzer
- will play Pachelbel's Canon indefinitely.
+ YASH - Yet Another Sous-vide Hack
+   Author: Peter Gebhard
+   Date: September 23, 2011
+   Contact: pgebhard@gmail.com
+   Website: www.petergebhard.com
+   Github: https://github.com/pgebhard/
+   Project: https://github.com/pgebhard/arduino_projects/tree/master/yash
+    
+   This sketch is used as the PID controller to convert
+   a Crock Pot brand Smart-Pot slow-cooker into a
+   sous-vide appliance.  It allows for a temperature
+   setpoint and a countdown timer to be adjusted as needed.
+   When the temperature setpoint is reached, the PID algorithm
+   will attempt maintain the water bath in the Crock Pot around
+   that setpoint.  Once the countdown timer expires, the 
+   Crock Pot will be set to OFF, and the 'Done' buzzer
+   will play Pachelbel's Canon indefinitely.
  
  License:
-  GNU GPL v3
+   GNU GPL v3
 
-  This program is free software: you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
+   This program is free software: you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation, either version 3 of the License, or
+   (at your option) any later version.
 
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+   You should have received a copy of the GNU General Public License
+   along with this program.  If not, see <http://www.gnu.org/licenses/>.
   
  Libraries used:
- LiquidCrystal (for the output LCD)
-   Library originally added 18 Apr 2008
-   by David A. Mellis
-   library modified 5 Jul 2009
-   by Limor Fried (http://www.ladyada.net)
-   http://www.arduino.cc/en/Tutorial/LiquidCrystal
- PID Library
-   Arduino PID Library
-   Author:  Brett Beauregard
-   Contact: br3ttb@gmail.com
-   License: Creative Commons Attribution-ShareAlike 3.0 Unported License
- SimpleTimer
-   Arduino SimpleTimer Library
-   Author:  Marcello Romani
-   Contact: mromani@ottotecnica.com
-   License: GNU LGPL v2.1+
- Tone
-   Arduino Tone Library
-   Author:  Rogue Robotics
-   Contact: http://code.google.com/p/rogue-code/
-   License: GNU GPL v3
-   
+   LiquidCrystal (for the output LCD)
+     Library originally added 18 Apr 2008
+     by David A. Mellis
+     library modified 5 Jul 2009
+     by Limor Fried (http://www.ladyada.net)
+     Website: http://www.arduino.cc/en/Tutorial/LiquidCrystal
+   PID Library
+     Arduino PID Library
+     Author:  Brett Beauregard
+     Contact: br3ttb@gmail.com
+     Website: http://www.arduino.cc/playground/Code/PIDLibrary
+     Website: http://code.google.com/p/arduino-pid-library/
+     License: Creative Commons Attribution-ShareAlike 3.0 Unported License
+   SimpleTimer
+     Arduino SimpleTimer Library
+     Author:  Marcello Romani
+     Contact: mromani@ottotecnica.com
+     Website: http://www.arduino.cc/playground/Code/SimpleTimer
+     License: GNU LGPL v2.1+
+   Tone
+     Arduino Tone Library
+     Author:  Rogue Robotics
+     Contact: http://code.google.com/p/rogue-code/
+     Website: http://code.google.com/p/rogue-code/wiki/ToneLibraryDocumentation
+     License: GNU GPL v3
    
  The circuit:
    * LCD RS pin to digital pin 8
