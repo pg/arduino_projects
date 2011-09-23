@@ -139,12 +139,12 @@ void setup() {
   lcd.print("Welcome to YASH");
   lcd.setCursor(0, 1);
   lcd.print("Sylvia & Peter");
-  delay(3000);
+  delay(2000);
   lcd.clear();
   
   // initialize PID values
   Input = TempSensorToFahren(analogRead(TempSensor));
-  Setpoint = 145;
+  Setpoint = 130;
   pid.SetMode(AUTOMATIC);
   
   // set the start time used as the starting point for the countdown timer
@@ -270,6 +270,8 @@ void readUpButton() {
            startTime = millis();
            break;
         }
+        
+        updateLCD();
       }
       
       // If the button is still being read as HIGH and the button has been recognized
@@ -287,10 +289,10 @@ void readUpButton() {
            startTime = millis();
            break;
         }
+        
         lastFastIncrementTime = millis();
+        updateLCD();
       }
-      
-      updateLCD();
     }
     
     // Button is read as LOW (or "unpressed")
@@ -344,6 +346,8 @@ void readDownButton() {
            startTime = millis();
            break;
         }
+        
+        updateLCD();
       }
       
       // If the button is still being read as HIGH and the button has been recognized
@@ -369,10 +373,10 @@ void readDownButton() {
            startTime = millis();
            break;
         }
+        
         lastFastDecrementTime = millis();
+        updateLCD();
       }
-      
-      updateLCD();
     }
     
     // Button is read as LOW (or "unpressed")
