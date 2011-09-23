@@ -150,9 +150,10 @@ void setup() {
   // set the start time used as the starting point for the countdown timer
   startTime = millis();
   
-  // set up the LCD update interrupt and the Serial output interrupt
+  // set up interrupts
   timer.setInterval(1000, updateLCD);
   timer.setInterval(30000, sendTemp);
+  timer.setInterval(60000, zeroCrockPot);
   
   // set up the 'Done' buzzer for when it's needed
   buzzer.begin(Buzzer);
@@ -179,6 +180,13 @@ void loop() {
   
   // LCD update timer to refresh the LCD when its in a running state
   timer.run();
+}
+
+// Set Crock Pot state back to OFF
+// - Used with interrupt timer to periodically clear any 
+//   accidental human Crock Pot button presses
+void zeroCrockPot() {
+  setCrockState(0);
 }
 
 // Change the Crock Pot state based on the PID output
