@@ -196,32 +196,22 @@ void adjustCrockPot() {
 
 // Change the Crock Pot state
 void setCrockState(int newState) {
-  // do nothing if we're attempting to change back to the same state
+  // Do nothing if we're attempting to change back to the same state
   if(newState == CrockState) {
     return;
   }
   
-  // Set to OFF
-  if(newState == 0) {
-    digitalWrite(CrockOff, LOW);
+  // Set to OFF first to get to known state
+  digitalWrite(CrockOff, LOW);
+  delay(500);
+  digitalWrite(CrockOff, HIGH);
+  
+  // "Press" CrockSelect button as many times as needed
+  // to get to desired CrockState
+  for(int i = 0; i < newState; i++) {    
+    digitalWrite(CrockSelect, LOW);
     delay(500);
-    digitalWrite(CrockOff, HIGH);
-  } else {
-    // Calculate how many "presses" on CrockSelect button to 
-    // get to the desired Crock Pot state
-    int presses = 0;
-    
-    if(newState < CrockState) {
-      presses = 3 - (CrockState - newState);
-    } else {
-      presses = newState - CrockState;
-    }
-    
-    for(int i = 0; i < presses; i++) {    
-      digitalWrite(CrockSelect, LOW);
-      delay(500);
-      digitalWrite(CrockSelect, HIGH);
-    }
+    digitalWrite(CrockSelect, HIGH);
   }
   
   // We reached the new state
