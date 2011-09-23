@@ -191,7 +191,7 @@ void setup() {
   // set up interrupts
   timer.setInterval(1000, updateLCD);
   timer.setInterval(30000, sendTemp);
-  timer.setInterval(60000, zeroCrockPot);
+  timer.setInterval(120000, zeroCrockPot);
   
   // set up the 'Done' buzzer for when it's needed
   buzzer.begin(Buzzer);
