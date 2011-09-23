@@ -11,18 +11,22 @@
  Crock Pot will be set to OFF, and the 'Done' buzzer
  will play Pachelbel's Canon indefinitely.
  
- The circuit:
- * LCD RS pin to digital pin 8
- * LCD Enable pin to digital pin 9
- * LCD D4 pin to digital pin 10
- * LCD D5 pin to digital pin 11
- * LCD D6 pin to digital pin 12
- * LCD D7 pin to digital pin 13
- * LCD R/W pin to ground
- * 10K resistor:
- * ends to +5V and ground
- * wiper to LCD VO pin (pin 3)
- 
+ License:
+  GNU GPL v3
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  
  Libraries used:
  LiquidCrystal (for the output LCD)
    Library originally added 18 Apr 2008
@@ -31,9 +35,34 @@
    by Limor Fried (http://www.ladyada.net)
    http://www.arduino.cc/en/Tutorial/LiquidCrystal
  PID Library
+   Arduino PID Library
+   Author:  Brett Beauregard
+   Contact: br3ttb@gmail.com
+   License: Creative Commons Attribution-ShareAlike 3.0 Unported License
  SimpleTimer
+   Arduino SimpleTimer Library
+   Author:  Marcello Romani
+   Contact: mromani@ottotecnica.com
+   License: GNU LGPL v2.1+
  Tone
- */
+   Arduino Tone Library
+   Author:  Rogue Robotics
+   Contact: http://code.google.com/p/rogue-code/
+   License: GNU GPL v3
+   
+   
+ The circuit:
+   * LCD RS pin to digital pin 8
+   * LCD Enable pin to digital pin 9
+   * LCD D4 pin to digital pin 10
+   * LCD D5 pin to digital pin 11
+   * LCD D6 pin to digital pin 12
+   * LCD D7 pin to digital pin 13
+   * LCD R/W pin to ground
+   * 10K resistor:
+   * ends to +5V and ground
+   * wiper to LCD VO pin (pin 3)
+*/
 
 // Libraries
 #include <LiquidCrystal.h>
